@@ -1,77 +1,81 @@
 # -*- coding: utf-8 -*-
-"Base Types for ProSafeLinux Class"
+"""Base Types for ProSafeLinux Class"""
 
 import binascii
 import struct
 
+
 class PslTyp:
-    "Base type every other type is inherited by this"
+    """Base type every other type is inherited by this"""
+
     def __init__(self, cmd_id, name):
-        "constructor"
+        """constructor"""
         self.cmd_id = cmd_id
         self.name = name
 
     def get_id(self):
-        "id of the command used by the switch to identify the command"
+        """id of the command used by the switch to identify the command"""
         return self.cmd_id
 
     def get_name(self):
-        "name used by humans to identify the command"
+        """name used by humans to identify the command"""
         return self.name
 
     def pack_py(self, value):
-        "pack a value to a represenation used by the switch"
+        """pack a value to a represenation used by the switch"""
         raise NotImplementedError
 
     def unpack_py(self, value):
-        "unpack a switch value to a represenation used by the programm"
+        """unpack a switch value to a represenation used by the program"""
         raise NotImplementedError
 
     def pack_cmd(self, value):
-        "pack something given from the cmd line"
+        """pack something given from the cmd line"""
         raise NotImplementedError
 
     def unpack_cmd(self, value):
-        "unpack something given from the cmd line"
+        """unpack something given from the cmd line"""
         raise NotImplementedError
 
     def print_result(self, value):
-        "print a result for a query action"
+        """print a result for a query action"""
         print("%-30s%s" % (self.get_name().capitalize(), value))
 
     def is_setable(self):
-        "can this command be set like name (not like firmware version)"
+        """can this command be set like name (not like firmware version)"""
         return False
 
     def is_queryable(self):
-        "can the command be queryed like name (not like reboot switch)"
+        """can the command be queried like name (not like reboot switch)"""
         return True
 
     def get_choices(self):
-        "if there is more than one choice you can query it here"
+        """if there is more than one choice you can query it here"""
         return None
 
     def get_num_args(self):
-        "Number of arguments needed to set"
+        """Number of arguments needed to set"""
         return 1
 
     def get_metavar(self):
-        "argparse metavar to set"
+        """argparse metavar to set"""
         return None
-    
+
     def get_set_type(self):
-        "argparse type to set"
+        """argparse type to set"""
         return None
-    
+
     def get_set_help(self):
-        "argparse help argument for set operation"
+        """argparse help argument for set operation"""
         return None
+
 
 ###############################################################################
 
 
 class PslTypString(PslTyp):
-    "A String typ line name"
+    """A String typ line name"""
+
     def pack_py(self, value):
         return value.encode()
 
@@ -93,14 +97,16 @@ class PslTypString(PslTyp):
 
 
 class PslTypStringQueryOnly(PslTypString):
-    "a string type which can only be queried but not changed like firmware ver."
+    """a string type which can only be queried but not changed like firmware ver."""
+
     def is_setable(self):
         return False
 
 
 ###############################################################################
 class PslTypPassword(PslTypString):
-    "a password can be set, but not queried"
+    """a password can be set, but not queried"""
+
     def __init__(self, cmd_id, name, setable):
         PslTypString.__init__(self, cmd_id, name)
         self.setable = setable
@@ -111,29 +117,31 @@ class PslTypPassword(PslTypString):
     def is_setable(self):
         return self.setable
 
+
 ################################################################################
 
 
 class PslTypBoolean(PslTyp):
-    " A boolean type, like dhcp on or off"
+    """ A boolean type, like dhcp on or off"""
+
     def pack_py(self, value):
-        if (value):
+        if value:
             return struct.pack(">b", 0x01)
         else:
             return struct.pack(">b", 0x00)
 
     def unpack_py(self, value):
-        if len(value)==1:
+        if len(value) == 1:
             numval = struct.unpack(">b", value)[0]
         else:
-            numval = struct.unpack(">h",value)[0]
-        return (numval == 0x01)
+            numval = struct.unpack(">h", value)[0]
+        return numval == 0x01
 
     def pack_cmd(self, value):
         return self.pack_py(value.lowercase == "on")
 
     def unpack_cmd(self, value):
-        if (self.unpack_py(value)):
+        if self.unpack_py(value):
             return "on"
         else:
             return "off"
@@ -149,7 +157,9 @@ class PslTypBoolean(PslTyp):
 
 
 class PslTypDHCP(PslTypBoolean):
-    "DHCP"
+    """DHCP"""
+
+
 # we already have that in base PslTypBoolean class, haven't we ?
 #    def pack_py(self, value):
 #        if (value):
@@ -162,7 +172,8 @@ class PslTypDHCP(PslTypBoolean):
 
 
 class PslTypAction(PslTypBoolean):
-    "An action like reset or reboot switch"
+    """An action like reset or reboot switch"""
+
     def pack_py(self, value):
         return struct.pack(">b", 0x01)
 
@@ -172,24 +183,26 @@ class PslTypAction(PslTypBoolean):
     def is_setable(self):
         return True
 
+
 ###############################################################################
 
 
 class PslTypMac(PslTyp):
-    "the mac address"
+    """the mac address"""
+
     def pack_py(self, val):
-        if (len(val) == 17):
+        if len(val) == 17:
             return binascii.unhexlify(val[0:2] + val[3:5] + val[6:8] +
                                       val[9:11] + val[12:14] + val[15:17])
-        if (len(val) == 12):
+        if len(val) == 12:
             return binascii.unhexlify(val)
-        raise "unkown mac format=" + val
+        raise "unknown mac format=" + val
 
     def unpack_py(self, value):
         mac = binascii.hexlify(value)
         mac = mac.decode()  # binascii.hexlify() yields a byte list in Python 3
         return (mac[0:2] + ":" + mac[2:4] + ":" + mac[4:6] + ":" + mac[6:8] +
-               ":" + mac[8:10] + ":" + mac[10:12])
+                ":" + mac[8:10] + ":" + mac[10:12])
 
     def pack_cmd(self, value):
         return self.pack_py(value)
@@ -197,14 +210,16 @@ class PslTypMac(PslTyp):
     def unpack_cmd(self, value):
         return self.unpack_py(value)
 
+
 ################################################################################
 
 
 class PslTypIpv4(PslTyp):
-    "IPv4 adrresss, gateway or netmask"
+    """IPv4 addresses, gateway or netmask"""
+
     def pack_py(self, value):
         adr = value.split(".")
-        if len(adr)!= 4:
+        if len(adr) != 4:
             raise ValueError("IP address wrong format %s" % value)
         for i in range(4):
             try:
@@ -216,7 +231,7 @@ class PslTypIpv4(PslTyp):
             if num < 0:
                 raise ValueError("IP address wrong format %s (<0)" % value)
         return struct.pack(">BBBB", int(adr[0]), int(adr[1]), int(adr[2]),
-                int(adr[3]))
+                           int(adr[3]))
 
     def unpack_py(self, value):
         adr = struct.unpack(">BBBB", value)
@@ -235,7 +250,8 @@ class PslTypIpv4(PslTyp):
 ################################################################################
 
 class PslTypHex(PslTyp):
-    "just decode to hex"
+    """just decode to hex"""
+
     def pack_py(self, value):
         return binascii.unhexlify(value)
 
@@ -248,10 +264,12 @@ class PslTypHex(PslTyp):
     def unpack_cmd(self, value):
         return self.unpack_py(value)
 
+
 ################################################################################
 
 class PslTypUnknown(PslTypHex):
-    "Unknown Data"
+    """Unknown Data"""
+
     def unpack_cmd(self, value):
         return "Unknown: %s - %s" % (self.name, binascii.hexlify(value))
 
@@ -260,15 +278,18 @@ class PslTypUnknown(PslTypHex):
 
 
 class PslTypHexNoQuery(PslTypHex):
-    "not query hex"
+    """not query hex"""
+
     def is_queryable(self):
         return False
+
 
 ################################################################################
 
 
 class PslTypEnd(PslTypHex):
-    "the last cmd of an query is End"
+    """the last cmd of an query is End"""
+
     def is_setable(self):
         return False
 
@@ -278,11 +299,12 @@ class PslTypEnd(PslTypHex):
     def print_result(self, value):
         pass
 
+
 ################################################################################
 
 
 class PslTypSpeedStat(PslTyp):
-    "Speed statistic 10/100/1000 per port"
+    """Speed statistic 10/100/1000 per port"""
     SPEED_NONE = 0x00
     SPEED_10MH = 0x01
     SPEED_10ML = 0x02
@@ -336,7 +358,8 @@ class PslTypSpeedStat(PslTyp):
 
 
 class PslTypPortStat(PslTyp):
-    "how many bytes are received/send on each port"
+    """how many bytes are received/send on each port"""
+
     def unpack_py(self, val):
         # Python 3 uses an array of bytes, Python 2 uses a string
         values = struct.unpack("!b6Q", val)
@@ -354,27 +377,27 @@ class PslTypPortStat(PslTyp):
     def unpack_cmd(self, value):
         return self.unpack_py(value)
 
-
     def is_setable(self):
         return False
 
     def print_result(self, value):
         print("%-30s%4s%15s%15s%15s%15s%15s%15s" % ("Port Statistic:", "Port",
-                                      "Rec.", "Send", "Packets",
-                                      "Broadcast pkt", "Multicast pkt",
-                                      "CRC errors"))
+                                                    "Rec.", "Send", "Packets",
+                                                    "Broadcast pkt", "Multicast pkt",
+                                                    "CRC errors"))
         for row in value:
             print("%-30s%4d%15d%15d%15d%15d%15d%15d" % ("",
-                                      row["port"], row["rec"],
-                                      row["send"], row["pkt"],
-                                      row["bcst"], row["mcst"],
-                                      row["error"]))
+                                                        row["port"], row["rec"],
+                                                        row["send"], row["pkt"],
+                                                        row["bcst"], row["mcst"],
+                                                        row["error"]))
+
 
 ################################################################################
 
 
 class PslTypBandwidth(PslTyp):
-    "limit bandwidth"
+    """limit bandwidth"""
     SPEED_LIMIT_NONE = 0x0000
     SPEED_LIMIT_512K = 0x0001
     SPEED_LIMIT_1M = 0x0002
@@ -401,23 +424,24 @@ class PslTypBandwidth(PslTyp):
         SPEED_LIMIT_128M: "128.0M",
         SPEED_LIMIT_256M: "256.0M",
         SPEED_LIMIT_512M: "512.0M"
-        }
+    }
 
     string_to_speed = {
-        "NONE":SPEED_LIMIT_NONE,
-        "512K":SPEED_LIMIT_512K,
-        "1M":SPEED_LIMIT_1M,
-        "2M":SPEED_LIMIT_2M,
-        "4M":SPEED_LIMIT_4M,
-        "8M":SPEED_LIMIT_8M,
-        "16M":SPEED_LIMIT_16M,
-        "32M":SPEED_LIMIT_32M,
-        "64M":SPEED_LIMIT_64M,
-        "128M":SPEED_LIMIT_128M,
-        "256M":SPEED_LIMIT_256M,
-        "512M":SPEED_LIMIT_512M
+        "NONE": SPEED_LIMIT_NONE,
+        "512K": SPEED_LIMIT_512K,
+        "1M": SPEED_LIMIT_1M,
+        "2M": SPEED_LIMIT_2M,
+        "4M": SPEED_LIMIT_4M,
+        "8M": SPEED_LIMIT_8M,
+        "16M": SPEED_LIMIT_16M,
+        "32M": SPEED_LIMIT_32M,
+        "64M": SPEED_LIMIT_64M,
+        "128M": SPEED_LIMIT_128M,
+        "256M": SPEED_LIMIT_256M,
+        "512M": SPEED_LIMIT_512M
 
     }
+
     def unpack_py(self, value):
         # Python 3 uses an array of bytes, Python 2 uses a string
         if type(value) is str:
@@ -438,10 +462,10 @@ class PslTypBandwidth(PslTyp):
         limit = self.string_to_speed[value[1]]
         rtn = struct.pack(">bbbh", int(value[0]), 0, 0, limit)
         return rtn
-        
+
     def print_result(self, value):
         print("%-30s%4s%15s %s" % (self.get_name().capitalize(), "Port",
-                                      "Limit", "FIXME"))
+                                   "Limit", "FIXME"))
         for row in value:
             print("%-30s%4d%15s %s " % ("",
                                         row["port"],
@@ -458,17 +482,18 @@ class PslTypBandwidth(PslTyp):
         return 2
 
     def get_metavar(self):
-        return ("PORT", "LIMIT")
+        return "PORT", "LIMIT"
 
     def get_set_help(self):
         out = "LIMIT can be: NONE,512K,1M,2M,4M,16M,32M,64M,128M,256M,512M"
         return out
 
+
 ################################################################################
 
 
 class PslTypVlanId(PslTyp):
-    "Vlan ports are binary coded"
+    """Vlan ports are binary coded"""
     BIN_PORTS = {1: 0x80,
                  2: 0x40,
                  3: 0x20,
@@ -483,16 +508,16 @@ class PslTypVlanId(PslTyp):
         ports = struct.unpack(">B", value[2:])[0]
         out_ports = []
         for port in list(self.BIN_PORTS.keys()):
-            if (ports & self.BIN_PORTS[port] > 0):
+            if ports & self.BIN_PORTS[port] > 0:
                 out_ports.append(port)
         rtn = {
             "vlan_id": struct.unpack(">h", value[0:2])[0],
             "ports": out_ports
         }
         return rtn
-        
+
     def pack_port(self, ports):
-        "helper method to pack ports to binary"
+        """helper method to pack ports to binary"""
         rtn = 0
         if ports == "":
             return rtn
@@ -507,7 +532,7 @@ class PslTypVlanId(PslTyp):
 
     def unpack_cmd(self, value):
         return self.unpack_py(value)
-        
+
     def is_setable(self):
         return True
 
@@ -515,11 +540,11 @@ class PslTypVlanId(PslTyp):
         return 2
 
     def get_metavar(self):
-        return ("VLAN_ID", "PORTS")
+        return "VLAN_ID", "PORTS"
 
     def print_result(self, value):
         print("%-30s%7s %s" % (self.get_name().capitalize(), "VLAN_ID",
-                                      "Ports"))
+                               "Ports"))
         for row in value:
             print("%-30s%7d %s" % ("",
                                    int(row["vlan_id"]),
@@ -530,7 +555,7 @@ class PslTypVlanId(PslTyp):
 
 
 class PslTypVlan802Id(PslTypVlanId):
-    "802Vlan is binary coded"
+    """802Vlan is binary coded"""
 
     def unpack_py(self, value):
         # Python 3 uses an array of bytes, Python 2 uses a string
@@ -543,9 +568,9 @@ class PslTypVlan802Id(PslTypVlanId):
         out_tagged_ports = []
         out_untagged_ports = []
         for port in list(self.BIN_PORTS.keys()):
-            if (tagged_ports & self.BIN_PORTS[port] > 0):
+            if tagged_ports & self.BIN_PORTS[port] > 0:
                 out_tagged_ports.append(port)
-            if (untagged_ports & self.BIN_PORTS[port] > 0):
+            if untagged_ports & self.BIN_PORTS[port] > 0:
                 out_untagged_ports.append(port)
         rtn = {
             "vlan_id": struct.unpack(">h", value[0:2])[0],
@@ -553,7 +578,6 @@ class PslTypVlan802Id(PslTypVlanId):
             "untagged_ports": out_untagged_ports
         }
         return rtn
-        
 
     def pack_py(self, value):
         tagged = self.pack_port(value[1])
@@ -568,30 +592,30 @@ class PslTypVlan802Id(PslTypVlanId):
         return 3
 
     def get_metavar(self):
-        return ("VLAN_ID", "TAGGED_PORTS", "UNTAGGED_PORTS")
+        return "VLAN_ID", "TAGGED_PORTS", "UNTAGGED_PORTS"
 
     def print_result(self, value):
         print("%-30s%7s %14s %s" % (self.get_name().capitalize(), "VLAN_ID",
-                                      "Tagged-Ports","Untagged-Ports"))
+                                    "Tagged-Ports", "Untagged-Ports"))
         if type(value) is list:
             for row in value:
                 print("%-30s%7d %14s %s" % ("",
-                        int(row["vlan_id"]),
-                        ",".join([str(x) for x in row["tagged_ports"]]),
-                        ",".join([str(x) for x in row["untagged_ports"]])))
+                                            int(row["vlan_id"]),
+                                            ",".join([str(x) for x in row["tagged_ports"]]),
+                                            ",".join([str(x) for x in row["untagged_ports"]])))
         else:
             print("%-30s%7d %14s %s" % ("",
-                        int(value["vlan_id"]),
-                        ",".join([str(x) for x in value["tagged_ports"]]),
-                        ",".join([str(x) for x in value["untagged_ports"]])))
-          
+                                        int(value["vlan_id"]),
+                                        ",".join([str(x) for x in value["tagged_ports"]]),
+                                        ",".join([str(x) for x in value["untagged_ports"]])))
 
-        
+
 ################################################################################
 
 
 class PslTypVlanPVID(PslTyp):
-    "The PVID"
+    """The PVID"""
+
     def unpack_py(self, value):
         # Python 3 uses an array of bytes, Python 2 uses a string
         if type(value) is str:
@@ -607,7 +631,7 @@ class PslTypVlanPVID(PslTyp):
         return rtn
 
     def pack_py(self, value):
-#        value = value.encode()
+        #        value = value.encode()
         rtn = struct.pack(">Bh", int(value[0]), int(value[1]))
         return rtn
 
@@ -621,71 +645,75 @@ class PslTypVlanPVID(PslTyp):
         return 2
 
     def get_metavar(self):
-        return ("PORT","VLAN_ID")
+        return "PORT", "VLAN_ID"
 
     def get_set_type(self):
         return int
 
     def print_result(self, value):
         print("%-30s%4s %s" % (self.get_name().capitalize(), "Port",
-                                      "VLAN_ID"))
+                               "VLAN_ID"))
         for row in value:
             print("%-30s%4d %7d" % ("",
-                                        row["port"],
-                                        row["vlan_id"]))
-
+                                    row["port"],
+                                    row["vlan_id"]))
 
     def get_set_help(self):
         return "an untagged package on PORT will get this VLAN_ID"
+
+
 ################################################################################
 
 
 class UnknownValueException(Exception):
-    "Found something which I don't know"
+    """Found something which I don't know"""
 
 
 class PslTypQos(PslTyp):
-    "Quality of service is port_based or 802.1p"
+    """Quality of service is port_based or 802.1p"""
+
     def unpack_py(self, value):
         # Python 3 uses an array of bytes, Python 2 uses a string
         if type(value) is str:
             val = struct.unpack(">B", value[0])[0]
         else:
             val = value[0]
-        if (val == 0x01):
+        if val == 0x01:
             return "port_based"
-        if (val == 0x02):
+        if val == 0x02:
             return "802.1p"
         return val
-        
+
     def pack_py(self, value):
-        if (value == "802.1p"):
+        if value == "802.1p":
             return struct.pack(">B", 0x02)
-        if (value == "port_based"):
+        if value == "port_based":
             return struct.pack(">B", 0x01)
         raise UnknownValueException("Unknown value %s" % value)
 
     def unpack_cmd(self, value):
         return self.unpack_py(value)
-       
+
     def is_setable(self):
         return True
-       
+
     def get_choices(self):
-        return ["port_based","802.1p"]
-    
+        return ["port_based", "802.1p"]
+
+
 ################################################################################
 
 
 class PslTypPortBasedQOS(PslTyp):
-    "Port based quality of service"
-    
+    """Port based quality of service"""
+
     QOS_PRIORITY = {
-      0x01:"HIGH",
-      0x02:"MIDDLE",
-      0x03:"NORMAL",
-      0x04:"LOW"
-     }
+        0x01: "HIGH",
+        0x02: "MIDDLE",
+        0x03: "NORMAL",
+        0x04: "LOW"
+    }
+
     def unpack_py(self, value):
         # Python 3 uses an array of bytes, Python 2 uses a string
         if type(value) is str:
@@ -706,13 +734,13 @@ class PslTypPortBasedQOS(PslTyp):
             val = self.QOS_PRIORITY[k]
             if val == value[1]:
                 qos = k
-        if qos == None:
+        if qos is None:
             raise UnknownValueException("Unknown value %s" % value[1])
         return struct.pack(">BB", int(value[0]), qos)
 
     def unpack_cmd(self, value):
         return self.unpack_py(value)
-       
+
     def is_setable(self):
         return True
 
@@ -720,50 +748,52 @@ class PslTypPortBasedQOS(PslTyp):
         return 2
 
     def get_metavar(self):
-        return ("PORT","QOS")
-        
+        return "PORT", "QOS"
+
     def get_set_help(self):
         return "QOS can be HIGH, MIDDLE, NORMAL, or LOW"
 
     def print_result(self, value):
         print("%-30s%4s %s" % (self.get_name().capitalize(), "Port",
-                                      "Priority"))
+                               "Priority"))
         for row in value:
             print("%-30s%4d %s" % ("",
                                    row["port"],
                                    row["qos"]))
 
+
 ################################################################################
 
 
 class PslTypIGMPSnooping(PslTyp):
-    "IGMP Snooping"
+    """IGMP Snooping"""
+
     def unpack_py(self, value):
         enabled = struct.unpack(">h", value[0:2])[0]
-        if (enabled == 0):
+        if enabled == 0:
             return None
-        if (enabled == 0x0001):
+        if enabled == 0x0001:
             # VLAN Id
             return struct.unpack(">h", value[2:])[0]
         raise UnknownValueException("Unknown value %d" % enabled)
-      
+
     def pack_py(self, value):
-        if (value == "none"):
+        if value == "none":
             return struct.pack(">hh", 0, 0)
         return struct.pack(">hh", 0x0001, int(value))
 
     def unpack_cmd(self, value):
         return self.unpack_py(value)
-       
+
     def is_setable(self):
         return True
-       
+
 
 ################################################################################
 
 
 class PslTypVlanSupport(PslTyp):
-    "VLAN Support can be none, port-, ip-, 802-port- or 802 ext-based"
+    """VLAN Support can be none, port-, ip-, 802-port- or 802 ext-based"""
     VLAN_NONE = 0x00
     VLAN_PORT_BASED = 0x01
     VLAN_ID_BASED = 0x02
@@ -775,7 +805,7 @@ class PslTypVlanSupport(PslTyp):
         VLAN_ID_BASED: "id",
         VLAN_8021Q_PORT_BASED: "802.1q_id",
         VLAN_8021Q_EXTENDED: "802.1q_extended"
-        }
+    }
 
     def unpack_py(self, value):
         # Python 3 uses an array of bytes, Python 2 uses a string
@@ -805,11 +835,12 @@ class PslTypVlanSupport(PslTyp):
     def get_choices(self):
         return list(self.id2str.values())
 
+
 ################################################################################
 
 
 class PslTypPortMirror(PslTyp):
-    "Port Mirroring"
+    """Port Mirroring"""
     BIN_PORTS = {1: 0x80,
                  2: 0x40,
                  3: 0x20,
@@ -824,7 +855,7 @@ class PslTypPortMirror(PslTyp):
         dst_port, fixme, src_ports = struct.unpack(">bbb", value)
         out_src_ports = []
         for port in list(self.BIN_PORTS.keys()):
-            if (src_ports & self.BIN_PORTS[port] > 0):
+            if src_ports & self.BIN_PORTS[port] > 0:
                 out_src_ports.append(port)
 
         if dst_port == 0:
@@ -843,7 +874,7 @@ class PslTypPortMirror(PslTyp):
         for dport in value[1].split(","):
             dst_ports += self.BIN_PORTS[int(dport)]
         return struct.pack(">bbb", int(value[0]), 0, dst_ports)
-        
+
     def unpack_cmd(self, value):
         return self.unpack_py(value)
 
@@ -854,7 +885,7 @@ class PslTypPortMirror(PslTyp):
         return 2
 
     def get_metavar(self):
-        return ("DST_PORTS","SRC_PORTS")
+        return "DST_PORTS", "SRC_PORTS"
 
     def get_set_help(self):
         return "SET DST_PORTS and SRC_PORTS to 0 to disable"
